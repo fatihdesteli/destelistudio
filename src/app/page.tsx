@@ -88,11 +88,44 @@ export default function Home() {
         }}
       />
 
-      {/* Mouse Spotlight */}
+      {/* Mouse Spotlight with Color Shift */}
       <div
         className="pointer-events-none fixed inset-0 z-30 transition-opacity duration-300"
         style={{
-          background: `radial-gradient(600px circle at ${cursorXY.x}px ${cursorXY.y}px, rgba(255,255,255,0.06), transparent 40%)`
+          background: `radial-gradient(600px circle at ${cursorXY.x}px ${cursorXY.y}px, 
+            rgba(${Math.min(255, (cursorXY.x / window.innerWidth) * 255)}, 
+                 ${Math.min(255, (cursorXY.y / window.innerHeight) * 255)}, 
+                 255, 0.15), 
+            transparent 40%)`
+        }}
+      />
+
+      {/* Floating Accents */}
+      <motion.div
+        className="absolute top-1/4 left-1/4 w-64 h-64 bg-purple-500/30 rounded-full blur-3xl"
+        animate={{
+          x: [0, 50, 0],
+          y: [0, -30, 0],
+          scale: [1, 1.2, 1],
+        }}
+        transition={{
+          duration: 8,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+      />
+      <motion.div
+        className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl"
+        animate={{
+          x: [0, -40, 0],
+          y: [0, 40, 0],
+          scale: [1, 1.1, 1],
+        }}
+        transition={{
+          duration: 10,
+          repeat: Infinity,
+          ease: "easeInOut",
+          delay: 1
         }}
       />
 
@@ -123,7 +156,7 @@ export default function Home() {
                   key={i}
                   custom={i}
                   variants={letterVariants}
-                  className="inline-block"
+                  className="inline-block animate-text-gradient"
                 >
                   {letter}
                 </motion.span>

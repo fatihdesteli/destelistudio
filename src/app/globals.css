@@ -3,13 +3,17 @@
 @tailwind utilities;
 
 :root {
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-surface: rgba(255, 255, 255, 0.05);
-  --glass-highlight: rgba(255, 255, 255, 0.2);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-surface: rgba(255, 255, 255, 0.1);
+  --glass-highlight: rgba(255, 255, 255, 0.3);
+  --neon-1: #ff0080;
+  --neon-2: #7928ca;
+  --neon-3: #00ff88;
 }
 
 body {
-  background: #0f172a; /* Deep slate/indigo base */
+  background: #050505;
+  /* Darker base for contrast */
   color: #fff;
   overflow: hidden;
 }
@@ -17,33 +21,83 @@ body {
 @keyframes aurora {
   0% {
     background-position: 50% 50%, 50% 50%;
+    filter: hue-rotate(0deg);
   }
+
   50% {
     background-position: 100% 0%, 0% 100%;
+    filter: hue-rotate(90deg);
   }
+
   100% {
     background-position: 50% 50%, 50% 50%;
+    filter: hue-rotate(0deg);
   }
 }
 
 .animate-aurora {
-  background-image: 
-    radial-gradient(circle at 50% 50%, rgba(76, 29, 149, 0.4), transparent 50%),
-    radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.3), transparent 50%),
-    radial-gradient(circle at 100% 100%, rgba(236, 72, 153, 0.3), transparent 50%);
-  background-size: 150% 150%, 150% 150%;
-  animation: aurora 15s ease infinite alternate;
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(121, 40, 202, 0.6), transparent 50%),
+    radial-gradient(circle at 0% 0%, rgba(0, 255, 136, 0.5), transparent 50%),
+    radial-gradient(circle at 100% 100%, rgba(255, 0, 128, 0.5), transparent 50%),
+    radial-gradient(circle at 100% 0%, rgba(0, 212, 255, 0.5), transparent 50%);
+  background-size: 180% 180%, 180% 180%, 180% 180%, 180% 180%;
+  animation: aurora 10s ease infinite alternate;
+}
+
+@keyframes border-cycle {
+  0% {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  50% {
+    border-color: rgba(255, 255, 255, 0.5);
+  }
+
+  100% {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
 }
 
 .glass-card {
   background: var(--glass-surface);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
   border: 1px solid var(--glass-border);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    inset 0 0 20px rgba(255, 255, 255, 0.05);
+  animation: border-cycle 4s ease-in-out infinite;
 }
 
 .glass-text-shadow {
-  text-shadow: 0 4px 20px rgba(255, 255, 255, 0.3);
+  text-shadow: 0 4px 30px rgba(255, 255, 255, 0.5);
 }
 
+@keyframes gradient-text {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-text-gradient {
+  background: linear-gradient(to right,
+      #fff,
+      #ff0080,
+      #7928ca,
+      #00ff88,
+      #fff);
+  background-size: 300% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: gradient-text 5s ease infinite;
+}
