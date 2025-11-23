@@ -24,6 +24,9 @@ export default function Home() {
   useEffect(() => {
     setMounted(true);
 
+    // Prevent scrolling on home page
+    document.body.style.overflow = 'hidden';
+
     const handleMouseMove = (e: MouseEvent) => {
       // Normalize mouse position for tilt (-0.5 to 0.5)
       const rect = document.body.getBoundingClientRect();
@@ -41,7 +44,11 @@ export default function Home() {
     };
 
     window.addEventListener("mousemove", handleMouseMove);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      // Re-enable scrolling when leaving home page
+      document.body.style.overflow = '';
+    };
   }, [x, y]);
 
   const title = "DESTELISTUDIO";

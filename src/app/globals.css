@@ -15,7 +15,6 @@ body {
   background: #050505;
   /* Darker base for contrast */
   color: #fff;
-  overflow: hidden;
 }
 
 @keyframes aurora {
