@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readFile, writeFile } from 'fs/promises';
+import { readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 
-const dataFilePath = path.join(process.cwd(), 'data', 'app-links.json');
+const dataDir = path.join(process.cwd(), 'data');
+const dataFilePath = path.join(dataDir, 'app-links.json');
+
+// Ensure data directory exists
+async function ensureDataDir() {
+  if (!existsSync(dataDir)) {
+    await mkdir(dataDir, { recursive: true });
+  }
+}
 
 interface AppLink {
   id: string;
@@ -83,6 +91,8 @@ export async function POST(request: NextRequest) {
       appLinks.push(appLink);
     }
 
+    // Ensure data directory exists before writing
+    await ensureDataDir();
     await writeFile(dataFilePath, JSON.stringify(appLinks, null, 2), 'utf-8');
 
     return NextResponse.json(
@@ -95,8 +105,9 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Error saving app link:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Bilinmeyen hata';
     return NextResponse.json(
-      { error: 'Kaydetme hatası' },
+      { error: `Kaydetme hatası: ${errorMessage}` },
       { status: 500 }
     );
   }
