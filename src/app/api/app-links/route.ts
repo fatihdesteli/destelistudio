@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { kv } from '@vercel/kv';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 
+const KV_KEY = 'app-links';
 const dataDir = path.join(process.cwd(), 'data');
 const dataFilePath = path.join(dataDir, 'app-links.json');
-
-// Ensure data directory exists
-async function ensureDataDir() {
-  if (!existsSync(dataDir)) {
-    await mkdir(dataDir, { recursive: true });
-  }
-}
 
 interface AppLink {
   id: string;
@@ -22,16 +17,69 @@ interface AppLink {
   createdAt: string;
 }
 
+// Check if KV is available
+async function isKVAvailable(): Promise<boolean> {
+  try {
+    await kv.ping();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Ensure data directory exists
+async function ensureDataDir() {
+  if (!existsSync(dataDir)) {
+    await mkdir(dataDir, { recursive: true });
+  }
+}
+
+// Get app links from KV or JSON fallback
+async function getAppLinks(): Promise<AppLink[]> {
+  const kvAvailable = await isKVAvailable();
+
+  if (kvAvailable) {
+    try {
+      const data = await kv.get<AppLink[]>(KV_KEY);
+      return data || [];
+    } catch (error) {
+      console.error('KV get error:', error);
+      // Fallback to JSON
+    }
+  }
+
+  // Fallback: Read from JSON file
+  if (existsSync(dataFilePath)) {
+    const fileContent = await readFile(dataFilePath, 'utf-8');
+    return JSON.parse(fileContent);
+  }
+
+  return [];
+}
+
+// Save app links to KV or JSON fallback
+async function saveAppLinks(appLinks: AppLink[]): Promise<void> {
+  const kvAvailable = await isKVAvailable();
+
+  if (kvAvailable) {
+    try {
+      await kv.set(KV_KEY, appLinks);
+      return;
+    } catch (error) {
+      console.error('KV set error:', error);
+      // Fallback to JSON
+    }
+  }
+
+  // Fallback: Write to JSON file
+  await ensureDataDir();
+  await writeFile(dataFilePath, JSON.stringify(appLinks, null, 2), 'utf-8');
+}
+
 // GET - Tüm app linklerini getir
 export async function GET(request: NextRequest) {
   try {
-    if (!existsSync(dataFilePath)) {
-      return NextResponse.json([], { status: 200 });
-    }
-
-    const fileContent = await readFile(dataFilePath, 'utf-8');
-    const appLinks: AppLink[] = JSON.parse(fileContent);
-
+    const appLinks = await getAppLinks();
     return NextResponse.json(appLinks, { status: 200 });
   } catch (error) {
     console.error('Error reading app links:', error);
@@ -64,12 +112,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let appLinks: AppLink[] = [];
-
-    if (existsSync(dataFilePath)) {
-      const fileContent = await readFile(dataFilePath, 'utf-8');
-      appLinks = JSON.parse(fileContent);
-    }
+    const appLinks = await getAppLinks();
 
     // Check if ID already exists
     const existingIndex = appLinks.findIndex(app => app.id === id);
@@ -91,9 +134,7 @@ export async function POST(request: NextRequest) {
       appLinks.push(appLink);
     }
 
-    // Ensure data directory exists before writing
-    await ensureDataDir();
-    await writeFile(dataFilePath, JSON.stringify(appLinks, null, 2), 'utf-8');
+    await saveAppLinks(appLinks);
 
     return NextResponse.json(
       {
@@ -126,16 +167,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    if (!existsSync(dataFilePath)) {
-      return NextResponse.json(
-        { error: 'Veri bulunamadı' },
-        { status: 404 }
-      );
-    }
-
-    const fileContent = await readFile(dataFilePath, 'utf-8');
-    let appLinks: AppLink[] = JSON.parse(fileContent);
-
+    const appLinks = await getAppLinks();
     const filteredLinks = appLinks.filter(app => app.id !== id);
 
     if (filteredLinks.length === appLinks.length) {
@@ -145,7 +177,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await writeFile(dataFilePath, JSON.stringify(filteredLinks, null, 2), 'utf-8');
+    await saveAppLinks(filteredLinks);
 
     return NextResponse.json(
       { success: true, message: 'Uygulama silindi' },
