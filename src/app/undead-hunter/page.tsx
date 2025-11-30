@@ -53,7 +53,7 @@ export default function UndeadHunterPrivacy() {
             <p className="text-gray-400 italic">
              # Privacy Policy
 
-**Last Updated: November 30, 2024**
+**Last Updated: December 1, 2025**
 
 **Desteli Studio** ("we", "our", "us") is committed to protecting your privacy when you use our mobile game **UNDEAD HUNTER** ("Game", "Application"). This Privacy Policy explains what information we collect, how we use it, and how we protect it when you use our Game.
 
