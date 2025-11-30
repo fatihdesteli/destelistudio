@@ -23,7 +23,7 @@ export default function DeleteAccount() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ ...formData, app: "Memes Avcısı" }),
+        body: JSON.stringify({ ...formData, app: "Undead Hunter" }),
       });
 
       const data = await response.json();
@@ -72,7 +72,7 @@ export default function DeleteAccount() {
           transition={{ duration: 0.5 }}
         >
           <Link
-            href="/memes-avcisi"
+            href="/undead-hunter"
             className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-8"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,7 +95,7 @@ export default function DeleteAccount() {
 
           <p className="text-gray-300 mb-8">
             <strong className="text-white">DESTELISTUDIO</strong> tarafından geliştirilen{" "}
-            <strong className="text-white">Memes Avcısı</strong> uygulaması için hesap silme talebi oluşturabilirsiniz.
+            <strong className="text-white">Undead Hunter</strong> uygulaması için hesap silme talebi oluşturabilirsiniz.
           </p>
 
           {/* Information Section */}
@@ -114,7 +114,7 @@ export default function DeleteAccount() {
             <h2 className="text-xl font-semibold text-purple-300 mb-4">🗑️ Silinecek Veriler</h2>
             <ul className="text-gray-300 space-y-2 list-disc list-inside">
               <li><strong className="text-white">Kullanıcı Adı:</strong> Oyun içi kullanıcı adınız</li>
-              <li><strong className="text-white">Oyun İçi Skorlar:</strong> Tüm skor ve başarı kayıtlarınız</li>
+              <li><strong className="text-white">Liderlik Tablosu Verileri:</strong> Tüm skor ve sıralama kayıtlarınız</li>
               <li><strong className="text-white">Tercihler:</strong> Oyun ayarları ve tercihleriniz</li>
             </ul>
 
@@ -236,7 +236,7 @@ export default function DeleteAccount() {
           transition={{ delay: 0.5 }}
           className="text-center text-gray-500 text-sm mt-8"
         >
-          DESTELISTUDIO - Memes Avcısı
+          DESTELISTUDIO - Undead Hunter
         </motion.p>
       </div>
     </main>
