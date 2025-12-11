@@ -110,23 +110,7 @@ export default function SinirPuzzlePrivacy() {
               <h2 className="text-2xl font-bold text-white mb-4">3. Third-Party Services</h2>
               <p className="text-gray-300 mb-4">Our Game integrates the following third-party services:</p>
 
-              <div className="bg-white/5 rounded-lg p-4 mb-4">
-                <h3 className="text-lg font-semibold text-green-300 mb-2">Google AdMob</h3>
-                <ul className="text-gray-300 text-sm space-y-1">
-                  <li><strong>Purpose:</strong> Advertisement display and monetization</li>
-                  <li><strong>Data Collected:</strong> Advertising ID, device info, ad interactions</li>
-                  <li><strong>Privacy Policy:</strong> <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300">https://policies.google.com/privacy</a></li>
-                </ul>
-              </div>
-
-              <div className="bg-white/5 rounded-lg p-4 mb-4">
-                <h3 className="text-lg font-semibold text-blue-300 mb-2">Google Firebase</h3>
-                <ul className="text-gray-300 text-sm space-y-1">
-                  <li><strong>Purpose:</strong> Analytics, crash reporting, cloud storage</li>
-                  <li><strong>Data Collected:</strong> Usage data, device info, crash logs</li>
-                  <li><strong>Privacy Policy:</strong> <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300">https://firebase.google.com/support/privacy</a></li>
-                </ul>
-              </div>
+  
 
               <div className="bg-white/5 rounded-lg p-4">
                 <h3 className="text-lg font-semibold text-yellow-300 mb-2">Unity Analytics (if applicable)</h3>
