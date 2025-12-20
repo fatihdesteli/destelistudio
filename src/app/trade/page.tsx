@@ -310,6 +310,7 @@ function GlowingText({ children, className = "" }: { children: React.ReactNode; 
 export default function TradePage() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState(0);
   const { scrollYProgress } = useScroll();
   const y = useTransform(scrollYProgress, [0, 0.3], ["0%", "30%"]);
@@ -317,11 +318,27 @@ export default function TradePage() {
   // Fetch data from Binance API
   const fetchData = useCallback(async () => {
     try {
-      const response = await fetch("/api/binance");
+      console.log("Fetching Binance data...");
+      setError(null);
+      const response = await fetch("/api/binance", {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const result = await response.json();
+      console.log("Binance data received:", result);
+
+      if (result.error) {
+        setError(result.error);
+      }
+
       setData(result);
-    } catch (error) {
-      console.error("Failed to fetch data:", error);
+    } catch (err) {
+      console.error("Failed to fetch data:", err);
+      setError(err instanceof Error ? err.message : "Veri alınamadı");
     } finally {
       setLoading(false);
     }
@@ -397,6 +414,25 @@ export default function TradePage() {
         </div>
       </motion.nav>
 
+      {/* Error/Loading Banner */}
+      {(error || loading) && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
+          {loading ? (
+            <div className="bg-blue-500/20 border border-blue-500/30 rounded-full px-6 py-3 flex items-center gap-3">
+              <div className="w-4 h-4 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin" />
+              <span className="text-blue-200 text-sm">Binance verileri yükleniyor...</span>
+            </div>
+          ) : error ? (
+            <div className="bg-red-500/20 border border-red-500/30 rounded-full px-6 py-3 flex items-center gap-3">
+              <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-red-200 text-sm">{error}</span>
+            </div>
+          ) : null}
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center px-6">
         <motion.div style={{ y }} className="text-center max-w-5xl mx-auto">
@@ -408,10 +444,12 @@ export default function TradePage() {
             className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-full px-4 py-2 mb-8"
           >
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${data?.success ? 'bg-green-400' : 'bg-yellow-400'} opacity-75`}></span>
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${data?.success ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
             </span>
-            <span className="text-blue-200 text-sm font-medium">Canlı Veriler • Binance Futures</span>
+            <span className="text-blue-200 text-sm font-medium">
+              {data?.success ? 'Canlı Veriler • Binance Futures' : 'Bağlanıyor...'}
+            </span>
           </motion.div>
 
           {/* Main Title - Elegant Serif */}
