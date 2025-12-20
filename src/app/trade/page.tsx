@@ -560,10 +560,33 @@ export default function TradePage() {
       {/* Animated Background */}
       <TradingStreamBackground />
 
+      {/* AI Trading Banner */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-purple-900/90 via-indigo-900/90 to-purple-900/90 backdrop-blur-md border-b border-purple-500/20">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-center gap-3">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z" />
+              <circle cx="7.5" cy="14.5" r="1.5" fill="currentColor" />
+              <circle cx="16.5" cy="14.5" r="1.5" fill="currentColor" />
+            </svg>
+            <span className="text-sm font-medium text-purple-200">
+              Tüm işlemler yapay zeka tarafından otomatik olarak gerçekleştirilmektedir
+            </span>
+          </div>
+          <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/20 border border-purple-500/30 text-xs font-medium text-purple-300">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-purple-400" />
+            </span>
+            AI Trading
+          </span>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <motion.section
         style={{ opacity: heroOpacity, scale: heroScale }}
-        className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-20"
+        className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-24"
       >
         {/* Gradient orbs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -841,93 +864,6 @@ export default function TradePage() {
               </motion.div>
             </ScrollSection>
           </div>
-        </div>
-      </section>
-
-      {/* Recent Trades Table */}
-      <section className="relative z-10 py-24 px-6">
-        <div className="max-w-7xl mx-auto">
-          <ScrollSection>
-            <motion.div
-              whileHover={{ y: -2 }}
-              transition={{ duration: 0.3 }}
-              className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/[0.03] to-transparent border border-white/[0.06]"
-            >
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/5 to-purple-500/5 blur-xl" />
-              </div>
-
-              <div className="relative z-10">
-                <div className="p-6 border-b border-white/[0.06] flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-1 h-6 rounded-full bg-gradient-to-b from-blue-400 to-blue-600" />
-                    <h3 className="text-xl font-semibold text-white">Trade Geçmişi</h3>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                    </span>
-                    <span className="text-xs font-mono text-gray-500">Canlı</span>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="bg-white/[0.02] text-gray-500 text-xs uppercase tracking-wider">
-                        <th className="px-6 py-4 font-medium">Sembol</th>
-                        <th className="px-6 py-4 font-medium">Yön</th>
-                        <th className="px-6 py-4 font-medium">Fiyat</th>
-                        <th className="px-6 py-4 font-medium">Miktar</th>
-                        <th className="px-6 py-4 font-medium text-right">PnL</th>
-                        <th className="px-6 py-4 font-medium text-right">Zaman</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.04]">
-                      {data.recentTrades.map((trade, idx) => (
-                        <motion.tr
-                          key={idx}
-                          initial={{ opacity: 0, x: -20 }}
-                          whileInView={{ opacity: 1, x: 0 }}
-                          viewport={{ once: true }}
-                          transition={{ delay: idx * 0.05 }}
-                          className="group/row hover:bg-white/[0.02] transition-colors"
-                        >
-                          <td className="px-6 py-4 font-medium text-white">
-                            {trade.symbol}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${
-                              trade.side === 'BUY'
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                            }`}>
-                              {trade.side === 'BUY' ? 'ALIŞ' : 'SATIŞ'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-gray-300 font-mono text-sm">
-                            ${trade.price.toFixed(4)}
-                          </td>
-                          <td className="px-6 py-4 text-gray-300 font-mono text-sm">
-                            {trade.qty}
-                          </td>
-                          <td className={`px-6 py-4 text-right font-mono font-semibold ${
-                            trade.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                          }`}>
-                            {trade.pnl > 0 ? '+' : ''}{trade.pnl.toFixed(2)}
-                          </td>
-                          <td className="px-6 py-4 text-right text-gray-500 text-sm">
-                            {new Date(trade.time).toLocaleString('tr-TR')}
-                          </td>
-                        </motion.tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </motion.div>
-          </ScrollSection>
         </div>
       </section>
 
