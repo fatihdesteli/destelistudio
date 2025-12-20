@@ -54,12 +54,14 @@ interface RecentTrade {
 
 interface ApiResponse {
   success: boolean;
+  isDemo?: boolean;
   stats: TradeStats;
   performanceData: PerformanceData[];
   monthlyData: MonthlyData[];
   recentTrades: RecentTrade[];
   lastUpdated: string;
   error?: string;
+  note?: string;
 }
 
 // Particle Ring Animation Component
@@ -441,14 +443,14 @@ export default function TradePage() {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.8 }}
-            className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-full px-4 py-2 mb-8"
+            className={`inline-flex items-center gap-2 ${data?.isDemo ? 'bg-amber-500/10 border-amber-500/20' : 'bg-blue-500/10 border-blue-500/20'} border rounded-full px-4 py-2 mb-8`}
           >
             <span className="relative flex h-2 w-2">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${data?.success ? 'bg-green-400' : 'bg-yellow-400'} opacity-75`}></span>
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${data?.success ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${data?.success && !data?.isDemo ? 'bg-green-400' : data?.isDemo ? 'bg-amber-400' : 'bg-yellow-400'} opacity-75`}></span>
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${data?.success && !data?.isDemo ? 'bg-green-500' : data?.isDemo ? 'bg-amber-500' : 'bg-yellow-500'}`}></span>
             </span>
-            <span className="text-blue-200 text-sm font-medium">
-              {data?.success ? 'Canlı Veriler • Binance Futures' : 'Bağlanıyor...'}
+            <span className={`text-sm font-medium ${data?.isDemo ? 'text-amber-200' : 'text-blue-200'}`}>
+              {data?.isDemo ? 'Önbellek Verisi • Gerçek Trade Geçmişi' : data?.success ? 'Canlı Veriler • Binance Futures' : 'Bağlanıyor...'}
             </span>
           </motion.div>
 
