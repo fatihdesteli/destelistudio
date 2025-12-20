@@ -120,17 +120,25 @@ const TradingStreamBackground = () => {
       }
 
       draw(ctx: CanvasRenderingContext2D) {
+        // Convert hex to rgba
+        const hexToRgba = (hex: string, alpha: number) => {
+          const r = parseInt(hex.slice(1, 3), 16);
+          const g = parseInt(hex.slice(3, 5), 16);
+          const b = parseInt(hex.slice(5, 7), 16);
+          return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        };
+
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fillStyle = this.color.replace(')', `, ${this.opacity})`).replace('rgb', 'rgba');
+        ctx.fillStyle = hexToRgba(this.color, this.opacity);
+        ctx.fill();
 
         // Create glow effect
         const gradient = ctx.createRadialGradient(
           this.x, this.y, 0,
           this.x, this.y, this.size * 4
         );
-        gradient.addColorStop(0, this.color.replace(')', `, ${this.opacity})`).replace('#', 'rgba(').replace(/(.{2})(.{2})(.{2})/, (_, r, g, b) =>
-          `${parseInt(r, 16)}, ${parseInt(g, 16)}, ${parseInt(b, 16)}`));
+        gradient.addColorStop(0, hexToRgba(this.color, this.opacity * 0.5));
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = gradient;
         ctx.fill();
@@ -186,6 +194,14 @@ const TradingStreamBackground = () => {
       draw(ctx: CanvasRenderingContext2D) {
         if (this.opacity < 0.01) return;
 
+        // Convert hex to rgba
+        const hexToRgba = (hex: string, alpha: number) => {
+          const r = parseInt(hex.slice(1, 3), 16);
+          const g = parseInt(hex.slice(3, 5), 16);
+          const b = parseInt(hex.slice(5, 7), 16);
+          return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        };
+
         ctx.beginPath();
         ctx.moveTo(this.points[0].x, this.points[0].y);
 
@@ -195,8 +211,7 @@ const TradingStreamBackground = () => {
           ctx.quadraticCurveTo(this.points[i].x, this.points[i].y, xc, yc);
         }
 
-        ctx.strokeStyle = this.color.replace(')', `, ${this.opacity})`).replace('#', 'rgba(').replace(/(.{2})(.{2})(.{2})/, (_, r, g, b) =>
-          `${parseInt(r, 16)}, ${parseInt(g, 16)}, ${parseInt(b, 16)}`);
+        ctx.strokeStyle = hexToRgba(this.color, this.opacity);
         ctx.lineWidth = this.width;
         ctx.stroke();
       }
@@ -720,8 +735,8 @@ export default function TradePage() {
                     <h3 className="text-xl font-semibold text-white">Kümülatif Performans</h3>
                   </div>
 
-                  <div className="h-[400px]">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="h-[400px] w-full min-w-0">
+                    <ResponsiveContainer width="100%" height={400} minWidth={300}>
                       <AreaChart data={data.performanceData}>
                         <defs>
                           <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
@@ -784,8 +799,8 @@ export default function TradePage() {
                     <h3 className="text-xl font-semibold text-white">Aylık Getiriler</h3>
                   </div>
 
-                  <div className="h-[400px]">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="h-[400px] w-full min-w-0">
+                    <ResponsiveContainer width="100%" height={400} minWidth={200}>
                       <BarChart data={data.monthlyData} layout="vertical">
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" horizontal={true} vertical={false} />
                         <XAxis type="number" hide />
