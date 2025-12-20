@@ -239,27 +239,16 @@ function AnimatedCounter({ value, prefix = "", suffix = "", decimals = 0 }: {
 }) {
   const [count, setCount] = useState(0);
   const [hasAnimated, setHasAnimated] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const previousValueRef = useRef(0);
   const ref = useRef<HTMLSpanElement>(null);
 
+  // Track visibility with intersection observer
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !hasAnimated) {
-          setHasAnimated(true);
-          const duration = 2000;
-          const steps = 60;
-          const increment = value / steps;
-          let current = 0;
-
-          const timer = setInterval(() => {
-            current += increment;
-            if (current >= value) {
-              setCount(value);
-              clearInterval(timer);
-            } else {
-              setCount(current);
-            }
-          }, duration / steps);
+        if (entry.isIntersecting) {
+          setIsVisible(true);
         }
       },
       { threshold: 0.1 }
@@ -267,7 +256,40 @@ function AnimatedCounter({ value, prefix = "", suffix = "", decimals = 0 }: {
 
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
-  }, [value, hasAnimated]);
+  }, []);
+
+  // Animate when visible AND value changes from 0 to real value
+  useEffect(() => {
+    // If value changed from 0 to something, reset animation
+    if (previousValueRef.current === 0 && value !== 0) {
+      setHasAnimated(false);
+    }
+    previousValueRef.current = value;
+
+    // Don't animate if value is 0 or not visible or already animated
+    if (value === 0 || !isVisible || hasAnimated) {
+      if (value === 0) setCount(0);
+      return;
+    }
+
+    setHasAnimated(true);
+    const duration = 2000;
+    const steps = 60;
+    const increment = value / steps;
+    let current = 0;
+
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= value) {
+        setCount(value);
+        clearInterval(timer);
+      } else {
+        setCount(current);
+      }
+    }, duration / steps);
+
+    return () => clearInterval(timer);
+  }, [value, isVisible, hasAnimated]);
 
   return (
     <span ref={ref}>
