@@ -35,7 +35,7 @@ async function binanceRequest(endpoint: string, params: Record<string, string | 
     headers: {
       'X-MBX-APIKEY': API_KEY,
     },
-    next: { revalidate: 60 }, // Cache for 60 seconds
+    cache: 'no-store',
   });
 
   if (!response.ok) {
@@ -74,11 +74,13 @@ export async function GET() {
       limit: 1000,
     });
 
-    // Fetch trade history
-    const allTrades: Trade[] = [];
-    const symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'DOGEUSDT', 'AVAXUSDT', 'ADAUSDT'];
+    // Get unique symbols from income history
+    const tradedSymbols = Array.from(new Set(incomeHistory.map(i => i.symbol).filter(Boolean)));
 
-    for (const symbol of symbols) {
+    // Fetch trade history for traded symbols
+    const allTrades: Trade[] = [];
+
+    for (const symbol of tradedSymbols) {
       try {
         const trades = await binanceRequest('/fapi/v1/userTrades', {
           symbol,
@@ -160,8 +162,8 @@ export async function GET() {
         cumulative += pnl;
         return {
           date,
-          pnl,
-          balance: cumulative,
+          pnl: Math.round(pnl * 100) / 100,
+          balance: Math.round(cumulative * 100) / 100,
         };
       });
 
@@ -179,7 +181,7 @@ export async function GET() {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([month, returnValue]) => ({
         month: new Date(month + '-01').toLocaleDateString('tr-TR', { month: 'short' }),
-        return: returnValue,
+        return: Math.round(returnValue * 100) / 100,
       }));
 
     // Account balance
@@ -214,7 +216,6 @@ export async function GET() {
       {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
-        // Return demo data on error
         stats: {
           totalPnL: 0,
           winRate: 0,
