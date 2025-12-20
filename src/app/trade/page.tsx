@@ -1,7 +1,7 @@
 "use client";
 
-import { motion, useScroll, useTransform } from "framer-motion";
-import { useEffect, useState, useRef } from "react";
+import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
+import { useEffect, useState, useRef, useCallback } from "react";
 import {
   AreaChart,
   Area,
@@ -13,8 +13,6 @@ import {
   BarChart,
   Bar,
   Cell,
-  PieChart,
-  Pie,
 } from "recharts";
 
 // Types
@@ -23,10 +21,14 @@ interface TradeStats {
   winRate: number;
   totalTrades: number;
   profitableTrades: number;
+  lossTrades: number;
   avgProfit: number;
+  avgLoss: number;
+  profitFactor: number;
   maxDrawdown: number;
-  sharpeRatio: number;
-  monthlyReturn: number;
+  totalWalletBalance: number;
+  availableBalance: number;
+  unrealizedPnL: number;
 }
 
 interface PerformanceData {
@@ -42,64 +44,191 @@ interface MonthlyData {
 
 interface RecentTrade {
   symbol: string;
-  side: "LONG" | "SHORT";
+  side: string;
+  positionSide: string;
   pnl: number;
-  roi: number;
-  time: string;
+  qty: number;
+  price: number;
+  time: number;
 }
 
-// Demo data - Replace with real Binance API data
-const demoStats: TradeStats = {
-  totalPnL: 47832.45,
-  winRate: 68.5,
-  totalTrades: 847,
-  profitableTrades: 580,
-  avgProfit: 127.35,
-  maxDrawdown: 12.3,
-  sharpeRatio: 2.14,
-  monthlyReturn: 18.7,
-};
+interface ApiResponse {
+  success: boolean;
+  stats: TradeStats;
+  performanceData: PerformanceData[];
+  monthlyData: MonthlyData[];
+  recentTrades: RecentTrade[];
+  lastUpdated: string;
+  error?: string;
+}
 
-const demoPerformance: PerformanceData[] = [
-  { date: "Jan", pnl: 2400, balance: 12400 },
-  { date: "Feb", pnl: 1398, balance: 13798 },
-  { date: "Mar", pnl: 4800, balance: 18598 },
-  { date: "Apr", pnl: 3908, balance: 22506 },
-  { date: "May", pnl: 4800, balance: 27306 },
-  { date: "Jun", pnl: 3800, balance: 31106 },
-  { date: "Jul", pnl: 6300, balance: 37406 },
-  { date: "Aug", pnl: 5100, balance: 42506 },
-  { date: "Sep", pnl: 4200, balance: 46706 },
-  { date: "Oct", pnl: 5800, balance: 52506 },
-  { date: "Nov", pnl: 4100, balance: 56606 },
-  { date: "Dec", pnl: 5900, balance: 62506 },
-];
+// Particle Ring Animation Component
+function ParticleRing() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mouseRef = useRef({ x: 0, y: 0 });
+  const animationRef = useRef<number>(0);
 
-const demoMonthlyReturns: MonthlyData[] = [
-  { month: "Jan", return: 12.4 },
-  { month: "Feb", return: 8.2 },
-  { month: "Mar", return: 22.1 },
-  { month: "Apr", return: 15.6 },
-  { month: "May", return: 18.3 },
-  { month: "Jun", return: -5.2 },
-  { month: "Jul", return: 28.4 },
-  { month: "Aug", return: 14.7 },
-  { month: "Sep", return: 11.2 },
-  { month: "Oct", return: 19.8 },
-  { month: "Nov", return: 8.9 },
-  { month: "Dec", return: 21.3 },
-];
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-const demoRecentTrades: RecentTrade[] = [
-  { symbol: "BTCUSDT", side: "LONG", pnl: 1247.32, roi: 15.4, time: "2 saat önce" },
-  { symbol: "ETHUSDT", side: "SHORT", pnl: 523.18, roi: 8.7, time: "5 saat önce" },
-  { symbol: "SOLUSDT", side: "LONG", pnl: -187.45, roi: -3.2, time: "8 saat önce" },
-  { symbol: "BNBUSDT", side: "LONG", pnl: 892.67, roi: 12.1, time: "12 saat önce" },
-  { symbol: "XRPUSDT", side: "SHORT", pnl: 445.23, roi: 6.8, time: "1 gün önce" },
-  { symbol: "AVAXUSDT", side: "LONG", pnl: 1823.91, roi: 24.5, time: "1 gün önce" },
-];
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-// Animated Counter Component
+    // Set canvas size
+    const setSize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    setSize();
+    window.addEventListener("resize", setSize);
+
+    // Track mouse
+    const handleMouse = (e: MouseEvent) => {
+      mouseRef.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener("mousemove", handleMouse);
+
+    // Particle class
+    class Particle {
+      x: number;
+      y: number;
+      baseX: number;
+      baseY: number;
+      size: number;
+      angle: number;
+      speed: number;
+      radius: number;
+      opacity: number;
+      pulseSpeed: number;
+      pulseOffset: number;
+
+      constructor(centerX: number, centerY: number, radius: number) {
+        this.angle = Math.random() * Math.PI * 2;
+        this.radius = radius + (Math.random() - 0.5) * 100;
+        this.baseX = centerX + Math.cos(this.angle) * this.radius;
+        this.baseY = centerY + Math.sin(this.angle) * this.radius;
+        this.x = this.baseX;
+        this.y = this.baseY;
+        this.size = Math.random() * 3 + 1;
+        this.speed = 0.002 + Math.random() * 0.003;
+        this.opacity = Math.random() * 0.5 + 0.3;
+        this.pulseSpeed = 0.02 + Math.random() * 0.02;
+        this.pulseOffset = Math.random() * Math.PI * 2;
+      }
+
+      update(time: number, centerX: number, centerY: number, mouseX: number, mouseY: number) {
+        this.angle += this.speed;
+
+        // Pulsing radius
+        const pulseRadius = this.radius + Math.sin(time * this.pulseSpeed + this.pulseOffset) * 20;
+
+        this.baseX = centerX + Math.cos(this.angle) * pulseRadius;
+        this.baseY = centerY + Math.sin(this.angle) * pulseRadius;
+
+        // Mouse interaction
+        const dx = mouseX - this.baseX;
+        const dy = mouseY - this.baseY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const maxDist = 200;
+
+        if (dist < maxDist) {
+          const force = (maxDist - dist) / maxDist;
+          this.x = this.baseX - dx * force * 0.3;
+          this.y = this.baseY - dy * force * 0.3;
+        } else {
+          this.x += (this.baseX - this.x) * 0.1;
+          this.y += (this.baseY - this.y) * 0.1;
+        }
+
+        // Pulsing opacity
+        this.opacity = 0.3 + Math.sin(time * 0.01 + this.pulseOffset) * 0.2;
+      }
+
+      draw(ctx: CanvasRenderingContext2D) {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(59, 130, 246, ${this.opacity})`;
+        ctx.fill();
+
+        // Glow effect
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size * 3, 0, Math.PI * 2);
+        const gradient = ctx.createRadialGradient(
+          this.x, this.y, 0,
+          this.x, this.y, this.size * 3
+        );
+        gradient.addColorStop(0, `rgba(59, 130, 246, ${this.opacity * 0.3})`);
+        gradient.addColorStop(1, "rgba(59, 130, 246, 0)");
+        ctx.fillStyle = gradient;
+        ctx.fill();
+      }
+    }
+
+    // Create particles
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const mainRadius = Math.min(canvas.width, canvas.height) * 0.3;
+    const particles: Particle[] = [];
+
+    for (let i = 0; i < 300; i++) {
+      particles.push(new Particle(centerX, centerY, mainRadius));
+    }
+
+    // Animation loop
+    let time = 0;
+    const animate = () => {
+      ctx.fillStyle = "rgba(5, 5, 15, 0.1)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const newCenterX = canvas.width / 2;
+      const newCenterY = canvas.height / 2;
+
+      particles.forEach((particle) => {
+        particle.update(time, newCenterX, newCenterY, mouseRef.current.x, mouseRef.current.y);
+        particle.draw(ctx);
+      });
+
+      // Draw connecting lines between close particles
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.05)";
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 50) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      time++;
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      window.removeEventListener("resize", setSize);
+      window.removeEventListener("mousemove", handleMouse);
+      cancelAnimationFrame(animationRef.current);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="fixed inset-0 pointer-events-none"
+      style={{ background: "linear-gradient(to bottom, #05050f, #0a0a1a)" }}
+    />
+  );
+}
+
+// Animated Counter
 function AnimatedCounter({ value, prefix = "", suffix = "", decimals = 0 }: {
   value: number;
   prefix?: string;
@@ -134,10 +263,7 @@ function AnimatedCounter({ value, prefix = "", suffix = "", decimals = 0 }: {
       { threshold: 0.1 }
     );
 
-    if (ref.current) {
-      observer.observe(ref.current);
-    }
-
+    if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
   }, [value, hasAnimated]);
 
@@ -148,314 +274,381 @@ function AnimatedCounter({ value, prefix = "", suffix = "", decimals = 0 }: {
   );
 }
 
-// Stat Card Component
-function StatCard({ title, value, prefix = "", suffix = "", decimals = 0, icon, trend, delay = 0 }: {
-  title: string;
-  value: number;
-  prefix?: string;
-  suffix?: string;
-  decimals?: number;
-  icon: React.ReactNode;
-  trend?: "up" | "down";
+// Floating Card Component
+function FloatingCard({ children, delay = 0, className = "" }: {
+  children: React.ReactNode;
   delay?: number;
+  className?: string;
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
+      initial={{ opacity: 0, y: 50 }}
       whileInView={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay }}
       viewport={{ once: true }}
-      className="relative group"
+      transition={{ duration: 0.8, delay, ease: [0.16, 1, 0.3, 1] }}
+      whileHover={{ y: -5, transition: { duration: 0.3 } }}
+      className={`relative group ${className}`}
     >
-      <div className="absolute inset-0 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500 opacity-0 group-hover:opacity-100" />
-      <div className="relative bg-[#0c0c0c]/80 backdrop-blur-xl border border-white/5 rounded-2xl p-6 hover:border-amber-500/30 transition-all duration-500">
-        <div className="flex items-center justify-between mb-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center text-amber-400">
-            {icon}
-          </div>
-          {trend && (
-            <div className={`flex items-center gap-1 text-sm ${trend === "up" ? "text-emerald-400" : "text-red-400"}`}>
-              {trend === "up" ? (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
-              )}
-            </div>
-          )}
-        </div>
-        <p className="text-gray-400 text-sm mb-1">{title}</p>
-        <p className="text-3xl font-bold text-white">
-          <AnimatedCounter value={value} prefix={prefix} suffix={suffix} decimals={decimals} />
-        </p>
+      <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      <div className="relative bg-[#0a0a1a]/80 backdrop-blur-xl border border-white/5 rounded-2xl p-6 hover:border-blue-500/30 transition-all duration-500">
+        {children}
       </div>
     </motion.div>
   );
 }
 
-// Custom Tooltip for Charts
-function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-[#1a1a1a] border border-amber-500/30 rounded-lg p-3 shadow-2xl">
-        <p className="text-gray-400 text-sm">{label}</p>
-        <p className="text-amber-400 font-bold text-lg">
-          ${payload[0].value.toLocaleString()}
-        </p>
-      </div>
-    );
-  }
-  return null;
+// Glowing Text
+function GlowingText({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <span className={`relative ${className}`}>
+      <span className="absolute inset-0 blur-2xl bg-blue-500/30" />
+      <span className="relative">{children}</span>
+    </span>
+  );
 }
 
 export default function TradePage() {
+  const [data, setData] = useState<ApiResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeSection, setActiveSection] = useState(0);
   const { scrollYProgress } = useScroll();
-  const y = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
-  const opacity = useTransform(scrollYProgress, [0, 0.3], [1, 0]);
+  const y = useTransform(scrollYProgress, [0, 0.3], ["0%", "30%"]);
+
+  // Fetch data from Binance API
+  const fetchData = useCallback(async () => {
+    try {
+      const response = await fetch("/api/binance");
+      const result = await response.json();
+      setData(result);
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+    // Refresh every 60 seconds
+    const interval = setInterval(fetchData, 60000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  // Scroll sections
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const section = Math.floor(scrollY / windowHeight);
+      setActiveSection(section);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const stats = data?.stats || {
+    totalPnL: 0,
+    winRate: 0,
+    totalTrades: 0,
+    profitableTrades: 0,
+    lossTrades: 0,
+    avgProfit: 0,
+    avgLoss: 0,
+    profitFactor: 0,
+    maxDrawdown: 0,
+    totalWalletBalance: 0,
+    availableBalance: 0,
+    unrealizedPnL: 0,
+  };
 
   return (
-    <main className="relative min-h-screen w-full bg-[#050505] text-white overflow-x-hidden">
-      {/* Background Effects */}
-      <div className="fixed inset-0 pointer-events-none">
-        {/* Gradient Orbs */}
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-amber-500/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-orange-500/10 rounded-full blur-[100px]" />
+    <main className="relative min-h-screen w-full text-white overflow-x-hidden">
+      {/* Particle Background */}
+      <ParticleRing />
 
-        {/* Grid */}
-        <div
-          className="absolute inset-0 opacity-[0.02]"
-          style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-            backgroundSize: "100px 100px"
-          }}
-        />
+      {/* Navigation */}
+      <motion.nav
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.5 }}
+        className="fixed top-0 left-0 right-0 z-50 px-6 py-4"
+      >
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+              <span className="font-bold text-sm">DS</span>
+            </div>
+            <span className="font-semibold text-lg tracking-wide">DESTELI TRADE</span>
+          </div>
 
-        {/* Noise Texture */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E")`
-        }} />
-      </div>
+          <div className="hidden md:flex items-center gap-8">
+            <a href="#stats" className="text-gray-400 hover:text-white transition-colors text-sm">İstatistikler</a>
+            <a href="#performance" className="text-gray-400 hover:text-white transition-colors text-sm">Performans</a>
+            <a href="#trades" className="text-gray-400 hover:text-white transition-colors text-sm">Trade&apos;ler</a>
+            <motion.a
+              href="#copy"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-5 py-2 rounded-full text-sm font-medium"
+            >
+              Copy Trading
+            </motion.a>
+          </div>
+        </div>
+      </motion.nav>
 
       {/* Hero Section */}
-      <motion.section
-        style={{ y, opacity }}
-        className="relative min-h-screen flex items-center justify-center px-6 pt-20"
-      >
-        <div className="max-w-6xl mx-auto text-center">
-          {/* Badge */}
+      <section className="relative min-h-screen flex items-center justify-center px-6">
+        <motion.div style={{ y }} className="text-center max-w-5xl mx-auto">
+          {/* Live Badge */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-full px-4 py-2 mb-8"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.6, delay: 0.8 }}
+            className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-full px-4 py-2 mb-8"
           >
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
             </span>
-            <span className="text-amber-200 text-sm font-medium">Canlı Trade Performansı</span>
+            <span className="text-blue-200 text-sm font-medium">Canlı Veriler • Binance Futures</span>
           </motion.div>
 
-          {/* Main Title */}
+          {/* Main Title - Elegant Serif */}
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.1 }}
-            className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 tracking-tight"
+            transition={{ duration: 1, delay: 1 }}
+            className="text-5xl md:text-7xl lg:text-8xl font-light mb-8 leading-tight font-playfair"
           >
-            <span className="bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
-              Futures Trading
-            </span>
+            <span className="italic text-gray-300">Sermayeni</span>
             <br />
-            <span className="bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 bg-clip-text text-transparent">
-              İstatistikleri
-            </span>
+            <GlowingText className="bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
+              profesyonelce
+            </GlowingText>
+            <br />
+            <span className="italic text-gray-300">yönet.</span>
           </motion.h1>
 
           {/* Subtitle */}
           <motion.p
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-xl md:text-2xl text-gray-400 max-w-3xl mx-auto mb-12"
+            transition={{ duration: 0.8, delay: 1.2 }}
+            className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-12 leading-relaxed"
           >
-            Binance Futures üzerindeki gerçek trade performansım.
-            <br className="hidden md:block" />
-            Şeffaf, doğrulanabilir ve takip edilebilir.
+            Gelişmiş futures stratejileri ile piyasayı okuyor, riski yönetiyor ve tutarlı getiri sağlıyorum.
+            Copy Trading ile bu başarıya sen de ortak ol.
           </motion.p>
 
           {/* Hero Stats */}
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="flex flex-wrap justify-center gap-8 md:gap-16"
+            transition={{ duration: 0.8, delay: 1.4 }}
+            className="flex flex-wrap justify-center gap-12 md:gap-20"
           >
             <div className="text-center">
-              <p className="text-4xl md:text-5xl font-bold text-emerald-400">
-                +<AnimatedCounter value={demoStats.totalPnL} decimals={0} />
+              <p className={`text-4xl md:text-6xl font-light ${stats.totalPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {stats.totalPnL >= 0 ? '+' : ''}<AnimatedCounter value={stats.totalPnL} decimals={0} />
               </p>
-              <p className="text-gray-500 mt-2">Toplam Kazanç (USDT)</p>
+              <p className="text-gray-500 mt-2 text-sm tracking-widest uppercase">Toplam PnL (USDT)</p>
             </div>
             <div className="text-center">
-              <p className="text-4xl md:text-5xl font-bold text-amber-400">
-                <AnimatedCounter value={demoStats.winRate} decimals={1} suffix="%" />
+              <p className="text-4xl md:text-6xl font-light text-blue-400">
+                <AnimatedCounter value={stats.winRate} decimals={1} suffix="%" />
               </p>
-              <p className="text-gray-500 mt-2">Win Rate</p>
+              <p className="text-gray-500 mt-2 text-sm tracking-widest uppercase">Win Rate</p>
             </div>
             <div className="text-center">
-              <p className="text-4xl md:text-5xl font-bold text-white">
-                <AnimatedCounter value={demoStats.totalTrades} />
+              <p className="text-4xl md:text-6xl font-light text-white">
+                <AnimatedCounter value={stats.totalTrades} />
               </p>
-              <p className="text-gray-500 mt-2">Toplam Trade</p>
+              <p className="text-gray-500 mt-2 text-sm tracking-widest uppercase">Trade Sayısı</p>
             </div>
           </motion.div>
 
-          {/* Scroll Indicator */}
+          {/* CTA Buttons */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1, duration: 1 }}
-            className="absolute bottom-10 left-1/2 -translate-x-1/2"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 1.6 }}
+            className="flex flex-wrap justify-center gap-4 mt-16"
           >
-            <motion.div
-              animate={{ y: [0, 10, 0] }}
-              transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-              className="w-6 h-10 border-2 border-gray-600 rounded-full flex justify-center"
+            <motion.a
+              href="#copy"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="bg-white text-black px-8 py-4 rounded-full font-medium text-sm tracking-wide hover:bg-gray-100 transition-colors"
             >
-              <motion.div
-                animate={{ y: [0, 12, 0] }}
-                transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-                className="w-1.5 h-3 bg-amber-400 rounded-full mt-2"
-              />
-            </motion.div>
+              Copy Trading&apos;e Başla
+            </motion.a>
+            <motion.a
+              href="#stats"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="border border-white/20 text-white px-8 py-4 rounded-full font-medium text-sm tracking-wide hover:bg-white/5 transition-colors"
+            >
+              İstatistikleri Gör
+            </motion.a>
           </motion.div>
-        </div>
-      </motion.section>
+        </motion.div>
 
-      {/* Stats Grid */}
-      <section className="relative py-24 px-6">
+        {/* Scroll Indicator */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 2, duration: 1 }}
+          className="absolute bottom-10 left-1/2 -translate-x-1/2"
+        >
+          <motion.div
+            animate={{ y: [0, 10, 0] }}
+            transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+            className="flex flex-col items-center gap-2"
+          >
+            <span className="text-gray-500 text-xs tracking-widest uppercase">Keşfet</span>
+            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+            </svg>
+          </motion.div>
+        </motion.div>
+      </section>
+
+      {/* Stats Section */}
+      <section id="stats" className="relative py-32 px-6">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-center mb-20"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Detaylı İstatistikler</h2>
-            <p className="text-gray-400">Tüm veriler gerçek zamanlı olarak Binance API&apos;sinden alınmaktadır</p>
+            <h2 className="text-4xl md:text-5xl font-light mb-4 font-playfair">
+              <span className="italic">Detaylı</span> Metrikler
+            </h2>
+            <p className="text-gray-400">01 Ekim 2025&apos;ten itibaren tüm trade verileri</p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard
-              title="Toplam PnL"
-              value={demoStats.totalPnL}
-              prefix="$"
-              decimals={2}
-              icon={
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              }
-              trend="up"
-              delay={0}
-            />
-            <StatCard
-              title="Win Rate"
-              value={demoStats.winRate}
-              suffix="%"
-              decimals={1}
-              icon={
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              }
-              trend="up"
-              delay={0.1}
-            />
-            <StatCard
-              title="Karlı Trade"
-              value={demoStats.profitableTrades}
-              icon={
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
-              }
-              delay={0.2}
-            />
-            <StatCard
-              title="Aylık Getiri"
-              value={demoStats.monthlyReturn}
-              suffix="%"
-              decimals={1}
-              icon={
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              }
-              trend="up"
-              delay={0.3}
-            />
+            <FloatingCard delay={0}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+                <span className="text-green-400 text-sm">+{stats.profitableTrades}</span>
+              </div>
+              <p className="text-gray-400 text-sm mb-1">Kazançlı Trade</p>
+              <p className="text-2xl font-light text-white">
+                <AnimatedCounter value={stats.profitableTrades} />
+              </p>
+            </FloatingCard>
+
+            <FloatingCard delay={0.1}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                  </svg>
+                </div>
+                <span className="text-red-400 text-sm">-{stats.lossTrades}</span>
+              </div>
+              <p className="text-gray-400 text-sm mb-1">Kayıplı Trade</p>
+              <p className="text-2xl font-light text-white">
+                <AnimatedCounter value={stats.lossTrades} />
+              </p>
+            </FloatingCard>
+
+            <FloatingCard delay={0.2}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-gray-400 text-sm mb-1">Ortalama Kazanç</p>
+              <p className="text-2xl font-light text-green-400">
+                +$<AnimatedCounter value={stats.avgProfit} decimals={2} />
+              </p>
+            </FloatingCard>
+
+            <FloatingCard delay={0.3}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-gray-400 text-sm mb-1">Profit Factor</p>
+              <p className="text-2xl font-light text-purple-400">
+                <AnimatedCounter value={stats.profitFactor} decimals={2} />
+              </p>
+            </FloatingCard>
           </div>
 
           {/* Second Row */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-            <StatCard
-              title="Ortalama Kar/Trade"
-              value={demoStats.avgProfit}
-              prefix="$"
-              decimals={2}
-              icon={
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              }
-              delay={0.4}
-            />
-            <StatCard
-              title="Max Drawdown"
-              value={demoStats.maxDrawdown}
-              suffix="%"
-              decimals={1}
-              icon={
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-                </svg>
-              }
-              trend="down"
-              delay={0.5}
-            />
-            <StatCard
-              title="Sharpe Oranı"
-              value={demoStats.sharpeRatio}
-              decimals={2}
-              icon={
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-                </svg>
-              }
-              delay={0.6}
-            />
+            <FloatingCard delay={0.4}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 rounded-xl bg-yellow-500/10 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-gray-400 text-sm mb-1">Cüzdan Bakiyesi</p>
+              <p className="text-2xl font-light text-white">
+                $<AnimatedCounter value={stats.totalWalletBalance} decimals={2} />
+              </p>
+            </FloatingCard>
+
+            <FloatingCard delay={0.5}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-gray-400 text-sm mb-1">Max Drawdown</p>
+              <p className="text-2xl font-light text-orange-400">
+                <AnimatedCounter value={stats.maxDrawdown} decimals={1} suffix="%" />
+              </p>
+            </FloatingCard>
+
+            <FloatingCard delay={0.6}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-gray-400 text-sm mb-1">Açık PnL</p>
+              <p className={`text-2xl font-light ${stats.unrealizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {stats.unrealizedPnL >= 0 ? '+' : ''}$<AnimatedCounter value={Math.abs(stats.unrealizedPnL)} decimals={2} />
+              </p>
+            </FloatingCard>
           </div>
         </div>
       </section>
 
       {/* Performance Chart */}
-      <section className="relative py-24 px-6">
+      <section id="performance" className="relative py-32 px-6">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-center mb-20"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Performans Grafiği</h2>
-            <p className="text-gray-400">Hesap bakiyesinin zaman içindeki değişimi</p>
+            <h2 className="text-4xl md:text-5xl font-light mb-4 font-playfair">
+              <span className="italic">Performans</span> Grafiği
+            </h2>
+            <p className="text-gray-400">Kümülatif PnL değişimi</p>
           </motion.div>
 
           <motion.div
@@ -465,31 +658,63 @@ export default function TradePage() {
             transition={{ duration: 0.8 }}
             className="relative"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-3xl blur-2xl" />
-            <div className="relative bg-[#0c0c0c]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-8">
+            <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-3xl blur-2xl" />
+            <div className="relative bg-[#0a0a1a]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-8">
               <div className="h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={demoPerformance}>
-                    <defs>
-                      <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#222" />
-                    <XAxis dataKey="date" stroke="#666" />
-                    <YAxis stroke="#666" tickFormatter={(value) => `$${value.toLocaleString()}`} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area
-                      type="monotone"
-                      dataKey="balance"
-                      stroke="#f59e0b"
-                      strokeWidth={3}
-                      fillOpacity={1}
-                      fill="url(#colorBalance)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                {data?.performanceData && data.performanceData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={data.performanceData}>
+                      <defs>
+                        <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1a1a2e" />
+                      <XAxis
+                        dataKey="date"
+                        stroke="#4b5563"
+                        tick={{ fill: '#6b7280', fontSize: 12 }}
+                        tickFormatter={(value) => new Date(value).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' })}
+                      />
+                      <YAxis
+                        stroke="#4b5563"
+                        tick={{ fill: '#6b7280', fontSize: 12 }}
+                        tickFormatter={(value) => `$${value.toLocaleString()}`}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#0a0a1a',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                          borderRadius: '12px',
+                          padding: '12px'
+                        }}
+                        labelStyle={{ color: '#9ca3af' }}
+                        formatter={(value) => [`$${value?.toLocaleString() ?? 0}`, 'Bakiye']}
+                        labelFormatter={(label) => new Date(label).toLocaleDateString('tr-TR')}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="balance"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        fillOpacity={1}
+                        fill="url(#colorBalance)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-500">
+                    {loading ? (
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                        <span>Veriler yükleniyor...</span>
+                      </div>
+                    ) : (
+                      "Henüz veri yok"
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>
@@ -497,16 +722,18 @@ export default function TradePage() {
       </section>
 
       {/* Monthly Returns */}
-      <section className="relative py-24 px-6">
+      <section className="relative py-32 px-6">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-center mb-20"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Aylık Getiriler</h2>
-            <p className="text-gray-400">Her ayın yüzdelik performansı</p>
+            <h2 className="text-4xl md:text-5xl font-light mb-4 font-playfair">
+              <span className="italic">Aylık</span> Getiriler
+            </h2>
+            <p className="text-gray-400">Her ayın toplam PnL değeri</p>
           </motion.div>
 
           <motion.div
@@ -516,33 +743,39 @@ export default function TradePage() {
             transition={{ duration: 0.8 }}
             className="relative"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-amber-500/10 rounded-3xl blur-2xl" />
-            <div className="relative bg-[#0c0c0c]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-8">
+            <div className="absolute -inset-1 bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-3xl blur-2xl" />
+            <div className="relative bg-[#0a0a1a]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-8">
               <div className="h-[350px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={demoMonthlyReturns}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#222" />
-                    <XAxis dataKey="month" stroke="#666" />
-                    <YAxis stroke="#666" tickFormatter={(value) => `${value}%`} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#1a1a1a',
-                        border: '1px solid rgba(245, 158, 11, 0.3)',
-                        borderRadius: '8px'
-                      }}
-                      labelStyle={{ color: '#999' }}
-                      formatter={(value) => [`${value}%`, 'Getiri']}
-                    />
-                    <Bar dataKey="return" radius={[4, 4, 0, 0]}>
-                      {demoMonthlyReturns.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={entry.return >= 0 ? '#10b981' : '#ef4444'}
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                {data?.monthlyData && data.monthlyData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data.monthlyData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1a1a2e" />
+                      <XAxis dataKey="month" stroke="#4b5563" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                      <YAxis stroke="#4b5563" tick={{ fill: '#6b7280', fontSize: 12 }} tickFormatter={(value) => `$${value}`} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#0a0a1a',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                          borderRadius: '12px',
+                        }}
+                        labelStyle={{ color: '#9ca3af' }}
+                        formatter={(value) => [`$${value}`, 'PnL']}
+                      />
+                      <Bar dataKey="return" radius={[6, 6, 0, 0]}>
+                        {data.monthlyData.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={entry.return >= 0 ? '#10b981' : '#ef4444'}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-500">
+                    {loading ? "Yükleniyor..." : "Henüz veri yok"}
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>
@@ -550,15 +783,17 @@ export default function TradePage() {
       </section>
 
       {/* Recent Trades */}
-      <section className="relative py-24 px-6">
+      <section id="trades" className="relative py-32 px-6">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-center mb-20"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Son Trade&apos;ler</h2>
+            <h2 className="text-4xl md:text-5xl font-light mb-4 font-playfair">
+              <span className="italic">Son</span> Trade&apos;ler
+            </h2>
             <p className="text-gray-400">Gerçek zamanlı trade geçmişi</p>
           </motion.div>
 
@@ -566,216 +801,86 @@ export default function TradePage() {
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
             className="relative"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-amber-500/10 rounded-3xl blur-2xl" />
-            <div className="relative bg-[#0c0c0c]/80 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden">
+            <div className="absolute -inset-1 bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-3xl blur-2xl" />
+            <div className="relative bg-[#0a0a1a]/80 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden">
               {/* Table Header */}
               <div className="grid grid-cols-5 gap-4 p-6 border-b border-white/5 bg-white/[0.02]">
                 <p className="text-gray-400 text-sm font-medium">Sembol</p>
                 <p className="text-gray-400 text-sm font-medium">Pozisyon</p>
+                <p className="text-gray-400 text-sm font-medium text-right">Miktar</p>
                 <p className="text-gray-400 text-sm font-medium text-right">PnL</p>
-                <p className="text-gray-400 text-sm font-medium text-right">ROI</p>
-                <p className="text-gray-400 text-sm font-medium text-right">Zaman</p>
+                <p className="text-gray-400 text-sm font-medium text-right">Tarih</p>
               </div>
 
               {/* Table Body */}
-              {demoRecentTrades.map((trade, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
-                  className="grid grid-cols-5 gap-4 p-6 border-b border-white/5 hover:bg-white/[0.02] transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center">
-                      <span className="text-xs font-bold text-amber-400">{trade.symbol.slice(0, 3)}</span>
-                    </div>
-                    <span className="font-medium">{trade.symbol}</span>
+              <AnimatePresence>
+                {data?.recentTrades && data.recentTrades.length > 0 ? (
+                  data.recentTrades.map((trade, index) => (
+                    <motion.div
+                      key={`${trade.symbol}-${trade.time}`}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="grid grid-cols-5 gap-4 p-6 border-b border-white/5 hover:bg-white/[0.02] transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
+                          <span className="text-xs font-bold text-blue-400">{trade.symbol.slice(0, 3)}</span>
+                        </div>
+                        <span className="font-medium">{trade.symbol}</span>
+                      </div>
+                      <div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          trade.side === "BUY"
+                            ? "bg-green-500/10 text-green-400 border border-green-500/20"
+                            : "bg-red-500/10 text-red-400 border border-red-500/20"
+                        }`}>
+                          {trade.positionSide === "LONG" ? "LONG" : trade.positionSide === "SHORT" ? "SHORT" : trade.side}
+                        </span>
+                      </div>
+                      <p className="text-right text-gray-300">{trade.qty.toFixed(4)}</p>
+                      <p className={`text-right font-medium ${trade.pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                        {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
+                      </p>
+                      <p className="text-right text-gray-400 text-sm">
+                        {new Date(trade.time).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="p-12 text-center text-gray-500">
+                    {loading ? (
+                      <div className="flex items-center justify-center gap-3">
+                        <div className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                        <span>Veriler yükleniyor...</span>
+                      </div>
+                    ) : (
+                      "Henüz trade yok"
+                    )}
                   </div>
-                  <div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      trade.side === "LONG"
-                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                        : "bg-red-500/10 text-red-400 border border-red-500/20"
-                    }`}>
-                      {trade.side}
-                    </span>
-                  </div>
-                  <p className={`text-right font-medium ${trade.pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                    {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toLocaleString()}
-                  </p>
-                  <p className={`text-right font-medium ${trade.roi >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                    {trade.roi >= 0 ? "+" : ""}{trade.roi}%
-                  </p>
-                  <p className="text-right text-gray-400">{trade.time}</p>
-                </motion.div>
-              ))}
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* Win/Loss Distribution */}
-      <section className="relative py-24 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Pie Chart */}
-            <motion.div
-              initial={{ opacity: 0, x: -40 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-              className="relative"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-amber-500/10 rounded-3xl blur-2xl" />
-              <div className="relative bg-[#0c0c0c]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-8">
-                <h3 className="text-xl font-bold mb-6 text-center">Kazanç/Kayıp Dağılımı</h3>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={[
-                          { name: 'Kazançlı', value: demoStats.profitableTrades },
-                          { name: 'Kayıplı', value: demoStats.totalTrades - demoStats.profitableTrades },
-                        ]}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        <Cell fill="#10b981" />
-                        <Cell fill="#ef4444" />
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: '#1a1a1a',
-                          border: '1px solid rgba(245, 158, 11, 0.3)',
-                          borderRadius: '8px'
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="flex justify-center gap-8 mt-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                    <span className="text-gray-400 text-sm">Kazançlı ({demoStats.profitableTrades})</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500" />
-                    <span className="text-gray-400 text-sm">Kayıplı ({demoStats.totalTrades - demoStats.profitableTrades})</span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Risk Metrics */}
-            <motion.div
-              initial={{ opacity: 0, x: 40 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-              className="relative"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-3xl blur-2xl" />
-              <div className="relative bg-[#0c0c0c]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-8">
-                <h3 className="text-xl font-bold mb-6 text-center">Risk Metrikleri</h3>
-
-                <div className="space-y-6">
-                  {/* Sharpe Ratio */}
-                  <div>
-                    <div className="flex justify-between mb-2">
-                      <span className="text-gray-400">Sharpe Oranı</span>
-                      <span className="font-medium text-amber-400">{demoStats.sharpeRatio}</span>
-                    </div>
-                    <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        whileInView={{ width: `${(demoStats.sharpeRatio / 3) * 100}%` }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 1, delay: 0.2 }}
-                        className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Win Rate */}
-                  <div>
-                    <div className="flex justify-between mb-2">
-                      <span className="text-gray-400">Win Rate</span>
-                      <span className="font-medium text-emerald-400">{demoStats.winRate}%</span>
-                    </div>
-                    <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        whileInView={{ width: `${demoStats.winRate}%` }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 1, delay: 0.3 }}
-                        className="h-full bg-gradient-to-r from-emerald-500 to-green-500 rounded-full"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Max Drawdown */}
-                  <div>
-                    <div className="flex justify-between mb-2">
-                      <span className="text-gray-400">Max Drawdown</span>
-                      <span className="font-medium text-red-400">{demoStats.maxDrawdown}%</span>
-                    </div>
-                    <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        whileInView={{ width: `${demoStats.maxDrawdown * 2}%` }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 1, delay: 0.4 }}
-                        className="h-full bg-gradient-to-r from-red-500 to-orange-500 rounded-full"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Profit Factor */}
-                  <div>
-                    <div className="flex justify-between mb-2">
-                      <span className="text-gray-400">Profit Factor</span>
-                      <span className="font-medium text-purple-400">2.47</span>
-                    </div>
-                    <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        whileInView={{ width: "82%" }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 1, delay: 0.5 }}
-                        className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
       {/* Copy Trading CTA */}
-      <section className="relative py-32 px-6">
-        <div className="max-w-4xl mx-auto text-center">
+      <section id="copy" className="relative py-32 px-6">
+        <div className="max-w-4xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
+            transition={{ duration: 1 }}
             className="relative"
           >
-            {/* Glow Effect */}
-            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/30 via-orange-500/30 to-amber-500/30 rounded-[40px] blur-3xl" />
+            {/* Glow */}
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 via-cyan-500/30 to-blue-500/30 rounded-[40px] blur-3xl" />
 
-            <div className="relative bg-gradient-to-b from-[#0c0c0c] to-[#111] border border-amber-500/20 rounded-[40px] p-12 md:p-16 overflow-hidden">
+            <div className="relative bg-gradient-to-b from-[#0a0a1a] to-[#0d0d1f] border border-blue-500/20 rounded-[40px] p-12 md:p-20 overflow-hidden">
               {/* Background Pattern */}
               <div className="absolute inset-0 opacity-5">
                 <div className="absolute inset-0" style={{
@@ -784,37 +889,35 @@ export default function TradePage() {
                 }} />
               </div>
 
-              <div className="relative z-10">
+              <div className="relative z-10 text-center">
                 <motion.div
                   initial={{ scale: 0 }}
                   whileInView={{ scale: 1 }}
                   viewport={{ once: true }}
-                  transition={{ type: "spring" as const, stiffness: 200, delay: 0.2 }}
-                  className="w-20 h-20 mx-auto mb-8 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-2xl shadow-amber-500/30"
+                  transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
+                  className="w-20 h-20 mx-auto mb-10 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-2xl shadow-blue-500/30"
                 >
                   <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </motion.div>
 
-                <h2 className="text-3xl md:text-5xl font-bold mb-6">
-                  <span className="bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-                    Beni Takip Et,
-                  </span>
+                <h2 className="text-4xl md:text-6xl font-light mb-6 font-playfair">
+                  <span className="text-gray-200">Beni takip et,</span>
                   <br />
-                  <span className="bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
-                    Birlikte Kazanalım
+                  <span className="italic bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                    birlikte kazanalım.
                   </span>
                 </h2>
 
-                <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto">
-                  Binance Copy Trading özelliği ile trade&apos;lerimi otomatik olarak kopyalayabilirsin.
-                  Hiçbir şey yapmanıza gerek yok - ben trade açtığımda, senin hesabın da aynı işlemi yapar.
+                <p className="text-lg text-gray-400 mb-10 max-w-xl mx-auto leading-relaxed">
+                  Binance Copy Trading ile pozisyonlarımı otomatik olarak kopyala.
+                  Risk yönetimini sen belirle, stratejiyi ben yöneteyim.
                 </p>
 
                 {/* Features */}
-                <div className="flex flex-wrap justify-center gap-4 mb-10">
-                  {["Otomatik Kopyalama", "Risk Kontrolü", "7/24 Aktif", "Şeffaf İstatistik"].map((feature, index) => (
+                <div className="flex flex-wrap justify-center gap-4 mb-12">
+                  {["Otomatik Kopyalama", "Risk Kontrolü", "7/24 Aktif", "Şeffaf Sonuçlar"].map((feature, index) => (
                     <motion.div
                       key={feature}
                       initial={{ opacity: 0, y: 20 }}
@@ -823,7 +926,7 @@ export default function TradePage() {
                       transition={{ delay: 0.3 + index * 0.1 }}
                       className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-2"
                     >
-                      <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                       <span className="text-sm text-gray-300">{feature}</span>
@@ -831,14 +934,14 @@ export default function TradePage() {
                   ))}
                 </div>
 
-                {/* CTA Button */}
+                {/* CTA */}
                 <motion.a
-                  href="https://www.binance.com/en/copy-trading" // Replace with your actual copy trading link
+                  href="https://www.binance.com/en/copy-trading"
                   target="_blank"
                   rel="noopener noreferrer"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="inline-flex items-center gap-3 bg-gradient-to-r from-amber-500 to-orange-600 text-black font-bold text-lg px-10 py-5 rounded-2xl shadow-2xl shadow-amber-500/30 hover:shadow-amber-500/50 transition-all duration-300"
+                  className="inline-flex items-center gap-3 bg-white text-black font-medium text-lg px-10 py-5 rounded-full hover:bg-gray-100 transition-colors"
                 >
                   <span>Copy Trading&apos;e Başla</span>
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -846,8 +949,8 @@ export default function TradePage() {
                   </svg>
                 </motion.a>
 
-                <p className="text-gray-500 text-sm mt-6">
-                  * Geçmiş performans gelecekteki sonuçları garanti etmez
+                <p className="text-gray-500 text-sm mt-8">
+                  * Geçmiş performans gelecekteki sonuçları garanti etmez. Yatırım tavsiyesi değildir.
                 </p>
               </div>
             </div>
@@ -860,31 +963,46 @@ export default function TradePage() {
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
-                <span className="font-bold text-black">DS</span>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                <span className="font-bold text-sm">DS</span>
               </div>
-              <span className="font-bold text-lg">DESTELISTUDIO</span>
+              <span className="font-semibold tracking-wide">DESTELI TRADE</span>
             </div>
 
             <p className="text-gray-500 text-sm text-center">
-              Tüm veriler gerçek Binance hesabımdan alınmaktadır. Yatırım tavsiyesi değildir.
+              Veriler gerçek zamanlı olarak Binance API&apos;sinden alınmaktadır.
+              {data?.lastUpdated && (
+                <span className="block text-xs mt-1">
+                  Son güncelleme: {new Date(data.lastUpdated).toLocaleString('tr-TR')}
+                </span>
+              )}
             </p>
 
-            <div className="flex items-center gap-4">
-              <a
-                href="https://www.binance.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-400 hover:text-amber-400 transition-colors"
-              >
-                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 0L7.5 4.5l4.5 4.5 4.5-4.5L12 0zM3 7.5L0 12l3 4.5L6 12 3 7.5zM21 7.5L18 12l3 4.5 3-4.5-3-4.5zM12 9l-3 3 3 3 3-3-3-3zM7.5 13.5L3 18l4.5 4.5 4.5-4.5-4.5-4.5zM16.5 13.5L12 18l4.5 4.5L21 18l-4.5-4.5z"/>
-                </svg>
-              </a>
-            </div>
+            <a
+              href="https://www.binance.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-400 hover:text-blue-400 transition-colors"
+            >
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0L7.5 4.5l4.5 4.5 4.5-4.5L12 0zM3 7.5L0 12l3 4.5L6 12 3 7.5zM21 7.5L18 12l3 4.5 3-4.5-3-4.5zM12 9l-3 3 3 3 3-3-3-3zM7.5 13.5L3 18l4.5 4.5 4.5-4.5-4.5-4.5zM16.5 13.5L12 18l4.5 4.5L21 18l-4.5-4.5z"/>
+              </svg>
+            </a>
           </div>
         </div>
       </footer>
+
+      {/* Section Indicators */}
+      <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50 hidden lg:flex flex-col gap-2">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <motion.div
+            key={i}
+            className={`w-2 h-2 rounded-full transition-all duration-300 ${
+              activeSection === i ? "bg-blue-500 scale-125" : "bg-gray-600"
+            }`}
+          />
+        ))}
+      </div>
     </main>
   );
 }
