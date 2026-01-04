@@ -235,6 +235,7 @@ function FloatingLogo({
               src={app.logo}
               alt={app.name}
               fill
+              unoptimized
               className="object-contain rounded-xl relative z-10"
               onError={(e) => {
                 // Logo bulunamazsa placeholder göster
