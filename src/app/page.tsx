@@ -10,7 +10,7 @@ const apps = [
   { id: 2, name: "Sinir Puzzle", logo: "/sinirpuzzle.png", x: 350, y: -250, scale: 0.9 },
   { id: 3, name: "Istanbul Cats", logo: "/istanbulcats.png", x: -350, y: 150, scale: 1.1 },
   { id: 4, name: "SK Logo", logo: "/SKlogo.png", x: 380, y: 180, scale: 0.85 },
-  { id: 5, name: "Undead Hunter", logo: "/undeadhunter.png", x: -250, y: -350, scale: 0.95 },
+  { id: 5, name: "Undead Hunter", logo: "/UNDEADHUNTER.png", x: -250, y: -350, scale: 0.95 },
   { id: 6, name: "Kazandıran Misyon", logo: "/kazandiranmisyon.png", x: 280, y: -100, scale: 1.05 },
 ];
 
