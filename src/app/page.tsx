@@ -225,17 +225,17 @@ function FloatingLogo({
         >
           <div className="w-20 h-20 md:w-24 md:h-24 relative flex items-center justify-center">
             {/* Placeholder - Logo yüklenene kadar */}
-            <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
               <span className="text-2xl font-bold text-white/70">
                 {app.name.charAt(0)}
               </span>
             </div>
-            {/* Gerçek logo - public dizinine eklendikten sonra görünecek */}
+            {/* Gerçek logo */}
             <Image
               src={app.logo}
               alt={app.name}
               fill
-              className="object-contain opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"
+              className="object-contain rounded-xl relative z-10"
               onError={(e) => {
                 // Logo bulunamazsa placeholder göster
                 e.currentTarget.style.display = 'none';
