@@ -16,6 +16,7 @@ const apps = [
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Mouse position tracking
   const mouseX = useMotionValue(0);
@@ -30,6 +31,13 @@ export default function Home() {
     setMounted(true);
     document.body.style.overflow = 'hidden';
 
+    // Check if mobile
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
     const handleMouseMove = (e: MouseEvent) => {
       // Normalize mouse position (-1 to 1)
       const x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -43,6 +51,7 @@ export default function Home() {
 
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener('resize', checkMobile);
       document.body.style.overflow = '';
     };
   }, [mouseX, mouseY]);
@@ -102,6 +111,7 @@ export default function Home() {
               mouseY={smoothMouseY}
               parallaxStrength={parallaxStrength}
               index={index}
+              isMobile={isMobile}
             />
           );
         })}
@@ -117,7 +127,7 @@ export default function Home() {
         {/* Glow effect behind text */}
         <div className="absolute inset-0 blur-3xl bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-blue-500/20 animate-pulse" />
 
-        <h1 className="relative text-6xl md:text-8xl lg:text-9xl font-bold tracking-tighter">
+        <h1 className="relative text-5xl sm:text-6xl md:text-8xl lg:text-9xl font-bold tracking-tighter">
           <span className="bg-gradient-to-b from-white via-white to-gray-400 bg-clip-text text-transparent drop-shadow-2xl">
             DESTELI
           </span>
@@ -172,17 +182,24 @@ function FloatingLogo({
   mouseX,
   mouseY,
   parallaxStrength,
-  index
+  index,
+  isMobile
 }: {
   app: typeof apps[0];
   mouseX: any;
   mouseY: any;
   parallaxStrength: number;
   index: number;
+  isMobile: boolean;
 }) {
+  // Mobilde pozisyonları küçült
+  const positionScale = isMobile ? 0.35 : 1;
+  const scaledX = app.x * positionScale;
+  const scaledY = app.y * positionScale;
+
   // Mouse pozisyonuna göre hareket
-  const x = useTransform(mouseX, [-1, 1], [-app.x * parallaxStrength, app.x * parallaxStrength]);
-  const y = useTransform(mouseY, [-1, 1], [-app.y * parallaxStrength, app.y * parallaxStrength]);
+  const x = useTransform(mouseX, [-1, 1], [-scaledX * parallaxStrength, scaledX * parallaxStrength]);
+  const y = useTransform(mouseY, [-1, 1], [-scaledY * parallaxStrength, scaledY * parallaxStrength]);
 
   // Dönme efekti
   const rotate = useTransform(mouseX, [-1, 1], [-5, 5]);
@@ -202,8 +219,8 @@ function FloatingLogo({
         rotate,
         left: '50%',
         top: '50%',
-        translateX: app.x,
-        translateY: app.y,
+        translateX: scaledX,
+        translateY: scaledY,
       }}
       className="absolute pointer-events-auto"
     >
@@ -220,13 +237,13 @@ function FloatingLogo({
 
         {/* Logo container */}
         <div
-          className="relative bg-white/5 backdrop-blur-md rounded-2xl p-4 border border-white/10 group-hover:border-white/30 transition-all duration-300 shadow-2xl"
-          style={{ transform: `scale(${app.scale})` }}
+          className="relative bg-white/5 backdrop-blur-md rounded-2xl p-3 md:p-4 border border-white/10 group-hover:border-white/30 transition-all duration-300 shadow-2xl"
+          style={{ transform: `scale(${isMobile ? app.scale * 0.8 : app.scale})` }}
         >
-          <div className="w-20 h-20 md:w-24 md:h-24 relative flex items-center justify-center">
+          <div className="w-16 h-16 md:w-24 md:h-24 relative flex items-center justify-center">
             {/* Placeholder - Logo yüklenene kadar */}
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-              <span className="text-2xl font-bold text-white/70">
+              <span className="text-xl md:text-2xl font-bold text-white/70">
                 {app.name.charAt(0)}
               </span>
             </div>
