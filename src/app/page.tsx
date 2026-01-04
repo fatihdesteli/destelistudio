@@ -1,194 +1,260 @@
 "use client";
 
-import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { motion, useMotionValue, useTransform, useSpring } from "framer-motion";
 import { useEffect, useState } from "react";
+import Image from "next/image";
+
+// Logo verisi - yeni logolar buraya eklenir
+const apps = [
+  { id: 1, name: "Memes Avcısı", logo: "/memesavcisi.png", x: -400, y: -200, scale: 1 },
+  { id: 2, name: "Sinir Puzzle", logo: "/sinirpuzzle.png", x: 350, y: -250, scale: 0.9 },
+  { id: 3, name: "Istanbul Cats", logo: "/istanbulcats.png", x: -350, y: 150, scale: 1.1 },
+  { id: 4, name: "SK Logo", logo: "/SKlogo.png", x: 380, y: 180, scale: 0.85 },
+  { id: 5, name: "Undead Hunter", logo: "/undeadhunter.png", x: -250, y: -350, scale: 0.95 },
+  { id: 6, name: "Kazandıran Misyon", logo: "/kazandiranmisyon.png", x: 280, y: -100, scale: 1.05 },
+];
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
 
-  // Mouse position for tilt effect
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
+  // Mouse position tracking
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
 
-  // Smooth spring animation for mouse movement
-  const mouseX = useSpring(x, { stiffness: 500, damping: 100 });
-  const mouseY = useSpring(y, { stiffness: 500, damping: 100 });
-
-  // Transform mouse position into tilt rotation
-  const rotateX = useTransform(mouseY, [-0.5, 0.5], ["15deg", "-15deg"]);
-  const rotateY = useTransform(mouseX, [-0.5, 0.5], ["-15deg", "15deg"]);
-
-  // Mouse follower position
-  const [cursorXY, setCursorXY] = useState({ x: -100, y: -100 });
+  // Smooth spring animation
+  const springConfig = { stiffness: 150, damping: 20 };
+  const smoothMouseX = useSpring(mouseX, springConfig);
+  const smoothMouseY = useSpring(mouseY, springConfig);
 
   useEffect(() => {
     setMounted(true);
-
-    // Prevent scrolling on home page
     document.body.style.overflow = 'hidden';
 
     const handleMouseMove = (e: MouseEvent) => {
-      // Normalize mouse position for tilt (-0.5 to 0.5)
-      const rect = document.body.getBoundingClientRect();
-      const width = rect.width;
-      const height = rect.height;
+      // Normalize mouse position (-1 to 1)
+      const x = (e.clientX / window.innerWidth) * 2 - 1;
+      const y = (e.clientY / window.innerHeight) * 2 - 1;
 
-      const mouseXNorm = (e.clientX / width) - 0.5;
-      const mouseYNorm = (e.clientY / height) - 0.5;
-
-      x.set(mouseXNorm);
-      y.set(mouseYNorm);
-
-      // Update cursor position for spotlight
-      setCursorXY({ x: e.clientX, y: e.clientY });
+      mouseX.set(x);
+      mouseY.set(y);
     };
 
     window.addEventListener("mousemove", handleMouseMove);
+
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
-      // Re-enable scrolling when leaving home page
       document.body.style.overflow = '';
     };
-  }, [x, y]);
-
-  const title = "DESTELISTUDIO";
-
-  const containerVariants = {
-    hidden: { opacity: 0, scale: 0.8 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: {
-        duration: 1,
-        ease: "easeOut" as const
-      }
-    }
-  };
-
-  const letterVariants = {
-    hidden: { y: 100, opacity: 0 },
-    visible: (i: number) => ({
-      y: 0,
-      opacity: 1,
-      transition: {
-        delay: 0.5 + (i * 0.05),
-        duration: 0.8,
-        ease: [0.2, 0.65, 0.3, 0.9] as const,
-      },
-    }),
-  };
+  }, [mouseX, mouseY]);
 
   if (!mounted) return null;
 
   return (
-    <main className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-[#0f172a]">
-      {/* Aurora Background */}
-      <div className="absolute inset-0 animate-aurora opacity-60" />
-
-      {/* Grid Overlay */}
+    <main className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#0a0a12] via-[#0f0f1e] to-[#0a0a12]">
+      {/* Animated Background Grid */}
       <div
-        className="absolute inset-0 opacity-20 pointer-events-none"
+        className="absolute inset-0 opacity-10 pointer-events-none"
         style={{
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)`,
-          backgroundSize: "50px 50px"
+          backgroundImage: `linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px)`,
+          backgroundSize: "60px 60px"
         }}
       />
 
-      {/* Mouse Spotlight with Color Shift */}
-      <div
-        className="pointer-events-none fixed inset-0 z-30 transition-opacity duration-300"
-        style={{
-          background: `radial-gradient(600px circle at ${cursorXY.x}px ${cursorXY.y}px, 
-            rgba(${Math.min(255, (cursorXY.x / window.innerWidth) * 255)}, 
-                 ${Math.min(255, (cursorXY.y / window.innerHeight) * 255)}, 
-                 255, 0.15), 
-            transparent 40%)`
-        }}
-      />
-
-      {/* Floating Accents */}
+      {/* Gradient Orbs */}
       <motion.div
-        className="absolute top-1/4 left-1/4 w-64 h-64 bg-purple-500/30 rounded-full blur-3xl"
         animate={{
-          x: [0, 50, 0],
-          y: [0, -30, 0],
           scale: [1, 1.2, 1],
+          opacity: [0.3, 0.5, 0.3],
         }}
         transition={{
           duration: 8,
           repeat: Infinity,
           ease: "easeInOut"
         }}
+        className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/30 rounded-full blur-[120px]"
       />
       <motion.div
-        className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl"
         animate={{
-          x: [0, -40, 0],
-          y: [0, 40, 0],
-          scale: [1, 1.1, 1],
+          scale: [1, 1.3, 1],
+          opacity: [0.2, 0.4, 0.2],
         }}
         transition={{
           duration: 10,
           repeat: Infinity,
           ease: "easeInOut",
-          delay: 1
+          delay: 2
         }}
+        className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[140px]"
       />
 
-      {/* 3D Tilt Container */}
+      {/* Floating App Logos */}
+      <div className="absolute inset-0 pointer-events-none">
+        {apps.map((app, index) => {
+          // Her logo için farklı parallax şiddeti
+          const parallaxStrength = 0.15 + (index * 0.05);
+
+          return (
+            <FloatingLogo
+              key={app.id}
+              app={app}
+              mouseX={smoothMouseX}
+              mouseY={smoothMouseY}
+              parallaxStrength={parallaxStrength}
+              index={index}
+            />
+          );
+        })}
+      </div>
+
+      {/* Center Title - Sabit */}
       <motion.div
-        style={{
-          rotateX,
-          rotateY,
-          perspective: 1000,
-          transformStyle: "preserve-3d",
-        }}
-        className="relative z-20"
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 1, ease: [0.25, 0.1, 0.25, 1] }}
+        className="relative z-20 text-center"
+      >
+        {/* Glow effect behind text */}
+        <div className="absolute inset-0 blur-3xl bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-blue-500/20 animate-pulse" />
+
+        <h1 className="relative text-6xl md:text-8xl lg:text-9xl font-bold tracking-tighter">
+          <span className="bg-gradient-to-b from-white via-white to-gray-400 bg-clip-text text-transparent drop-shadow-2xl">
+            DESTELI
+          </span>
+          <br />
+          <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 bg-clip-text text-transparent animate-gradient bg-[length:200%_auto]">
+            STUDIO
+          </span>
+        </h1>
+
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: "100%" }}
+          transition={{ delay: 0.8, duration: 1 }}
+          className="h-px bg-gradient-to-r from-transparent via-white/50 to-transparent mt-8"
+        />
+
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.2, duration: 0.8 }}
+          className="text-gray-400 text-sm md:text-base tracking-[0.3em] uppercase mt-6 font-light"
+        >
+          Creative Game Studio
+        </motion.p>
+      </motion.div>
+
+      {/* Scroll Hint */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 2 }}
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10"
       >
         <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="glass-card p-12 md:p-24 rounded-3xl relative overflow-hidden"
+          animate={{ y: [0, 10, 0] }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          className="flex flex-col items-center gap-2 text-gray-600"
         >
-          {/* Shine Effect on Card */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-transparent opacity-50 pointer-events-none" />
-
-          {/* Main Title */}
-          <div className="relative z-10 overflow-hidden">
-            <h1 className="flex text-5xl md:text-8xl lg:text-9xl font-bold tracking-tighter glass-text-shadow">
-              {title.split("").map((letter, i) => (
-                <motion.span
-                  key={i}
-                  custom={i}
-                  variants={letterVariants}
-                  className="inline-block animate-text-gradient"
-                >
-                  {letter}
-                </motion.span>
-              ))}
-            </h1>
-          </div>
-
-          {/* Subtitle / Decoration */}
-          <motion.div
-            initial={{ opacity: 0, width: 0 }}
-            animate={{ opacity: 1, width: "100%" }}
-            transition={{ delay: 1.5, duration: 1 }}
-            className="h-0.5 bg-gradient-to-r from-transparent via-white/50 to-transparent mt-6"
-          />
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 2, duration: 0.8 }}
-            className="text-center mt-6 text-sm md:text-base tracking-[0.5em] text-gray-300 font-light uppercase"
-          >
-            Future Interactive
-          </motion.p>
+          <span className="text-xs uppercase tracking-widest">Explore</span>
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
         </motion.div>
       </motion.div>
     </main>
+  );
+}
+
+// Floating Logo Component
+function FloatingLogo({
+  app,
+  mouseX,
+  mouseY,
+  parallaxStrength,
+  index
+}: {
+  app: typeof apps[0];
+  mouseX: any;
+  mouseY: any;
+  parallaxStrength: number;
+  index: number;
+}) {
+  // Mouse pozisyonuna göre hareket
+  const x = useTransform(mouseX, [-1, 1], [-app.x * parallaxStrength, app.x * parallaxStrength]);
+  const y = useTransform(mouseY, [-1, 1], [-app.y * parallaxStrength, app.y * parallaxStrength]);
+
+  // Dönme efekti
+  const rotate = useTransform(mouseX, [-1, 1], [-5, 5]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{
+        delay: 0.5 + index * 0.1,
+        duration: 0.8,
+        ease: [0.25, 0.1, 0.25, 1]
+      }}
+      style={{
+        x,
+        y,
+        rotate,
+        left: '50%',
+        top: '50%',
+        translateX: app.x,
+        translateY: app.y,
+      }}
+      className="absolute pointer-events-auto"
+    >
+      <motion.div
+        whileHover={{
+          scale: 1.15,
+          rotate: [0, -5, 5, 0],
+          transition: { duration: 0.3 }
+        }}
+        className="group relative"
+      >
+        {/* Glow effect on hover */}
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/0 to-purple-500/0 group-hover:from-blue-500/30 group-hover:to-purple-500/30 blur-xl transition-all duration-500" />
+
+        {/* Logo container */}
+        <div
+          className="relative bg-white/5 backdrop-blur-md rounded-2xl p-4 border border-white/10 group-hover:border-white/30 transition-all duration-300 shadow-2xl"
+          style={{ transform: `scale(${app.scale})` }}
+        >
+          <div className="w-20 h-20 md:w-24 md:h-24 relative flex items-center justify-center">
+            {/* Placeholder - Logo yüklenene kadar */}
+            <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <span className="text-2xl font-bold text-white/70">
+                {app.name.charAt(0)}
+              </span>
+            </div>
+            {/* Gerçek logo - public dizinine eklendikten sonra görünecek */}
+            <Image
+              src={app.logo}
+              alt={app.name}
+              fill
+              className="object-contain opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"
+              onError={(e) => {
+                // Logo bulunamazsa placeholder göster
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          </div>
+
+          {/* App name on hover */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            whileHover={{ opacity: 1, y: 0 }}
+            className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          >
+            <span className="text-xs font-medium text-white/80 bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm">
+              {app.name}
+            </span>
+          </motion.div>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
